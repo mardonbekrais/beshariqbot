@@ -11,10 +11,16 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 import os
 
 from dotenv import load_dotenv
-
-
+from firebase_db import firebase_db
 
 load_dotenv()
+
+# Firebase ni ishga tushirish (ixtiyoriy, .env da FIREBASE_URL bo'lsa)
+if os.getenv('FIREBASE_DATABASE_URL'):
+    firebase_db.initialize(
+        database_url=os.getenv('FIREBASE_DATABASE_URL'),
+        credential_path=os.getenv('FIREBASE_CREDENTIAL_PATH')
+    )
 
 
 
@@ -296,7 +302,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         conn.commit()
 
-        
+        # Firebase ga ham saqlash
+
+        firebase_db.save_user(telegram_id, username)
 
         await update.message.reply_text(
 
@@ -369,6 +377,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         cursor.execute('UPDATE users SET phone = ? WHERE telegram_id = ?', (phone, telegram_id))
 
         conn.commit()
+
+        
+
+        # Firebase da ham yangilash
+
+        user = firebase_db.get_user(telegram_id)
+
+        if user:
+
+            firebase_db.save_user(telegram_id, user.get('name'), phone, user.get('user_type'))
 
         
 
@@ -610,6 +628,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         order_id = cursor.lastrowid
 
+        
+
+        # Firebase ga buyurtma saqlash
+
+        firebase_db.create_order(order_id, telegram_id, 'taxi', destination, int(passenger_count))
+
+        
+
         order_keyboard = InlineKeyboardMarkup([
 
             [InlineKeyboardButton("🚖 Buyurtmani olish", callback_data=f"take_order_{order_id}")],
@@ -773,6 +799,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Create inline keyboard for delivery order taking
 
         delivery_order_id = cursor.lastrowid
+
+        
+
+        # Firebase ga pochta buyurtmasi saqlash
+
+        firebase_db.create_order(delivery_order_id, telegram_id, 'delivery', destination, 1)
+
+        
 
         delivery_keyboard = InlineKeyboardMarkup([
 
@@ -991,6 +1025,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 ''', (telegram_id, user_info[0], user_info[1]))
 
                 conn.commit()
+
+                # Firebase ga ariza saqlash
+
+                app_id = cursor.lastrowid
+
+                firebase_db.save_application(app_id, telegram_id, user_info[0], user_info[1], 'pending')
 
                 
 
@@ -1874,6 +1914,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
         
 
+        # Firebase da ham yangilash
+
+        firebase_db.assign_order(order_id, telegram_id)
+
+        
+
         # Get order details
 
         cursor.execute('''
@@ -2170,6 +2216,16 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
             
 
+            # Firebase da ham yangilash
+
+            firebase_db.update_application_status(application_id, 'approved')
+
+            firebase_db.save_driver(application[1], application[2], application[3], 'active')
+
+            firebase_db.save_user(application[1], application[2], application[3], 'driver')
+
+            
+
             # Notify driver
 
             try:
@@ -2249,6 +2305,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             cursor.execute('UPDATE driver_applications SET status = "rejected" WHERE id = ?', (application_id,))
 
             conn.commit()
+
+            
+
+            # Firebase da ham rad etilgan deb belgilash
+
+            firebase_db.update_application_status(application_id, 'rejected')
 
             
 
@@ -2335,6 +2397,10 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         cursor.execute('UPDATE orders SET status = "completed" WHERE id = ?', (order_id,))
 
         conn.commit()
+
+        # Firebase da ham tugatilgan deb belgilash
+
+        firebase_db.complete_order(order_id)
 
         
 

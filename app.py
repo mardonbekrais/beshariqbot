@@ -236,11 +236,11 @@ def get_admin_menu():
 
     keyboard = [
 
-        [KeyboardButton("📊 Buyurtmalar"), KeyboardButton("🚗 Haydovchilar")],
+        [KeyboardButton("📊 Statistika"), KeyboardButton("� Buyurtmalar")],
 
-        [KeyboardButton("➕ Haydovchi qo'shish"), KeyboardButton("📋 Arizalar")],
+        [KeyboardButton("🚗 Haydovchilar"), KeyboardButton("📋 Arizalar")],
 
-        [KeyboardButton("🔙 Orqaga")]
+        [KeyboardButton("➕ Haydovchi qo'shish"), KeyboardButton("🔙 Orqaga")]
 
     ]
 
@@ -1112,6 +1112,94 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Handle admin panel
 
+    elif text == "📊 Statistika":
+
+        if str(telegram_id) == os.getenv('ADMIN_CHAT_ID'):
+
+            # Statistikani olish
+
+            cursor.execute('SELECT COUNT(*) FROM users')
+
+            total_users = cursor.fetchone()[0]
+
+            
+
+            cursor.execute('SELECT COUNT(*) FROM drivers')
+
+            total_drivers = cursor.fetchone()[0]
+
+            
+
+            cursor.execute('SELECT COUNT(*) FROM orders')
+
+            total_orders = cursor.fetchone()[0]
+
+            
+
+            cursor.execute('SELECT COUNT(*) FROM orders WHERE status = "completed"')
+
+            completed_orders = cursor.fetchone()[0]
+
+            
+
+            cursor.execute('SELECT COUNT(*) FROM driver_applications WHERE status = "pending"')
+
+            pending_applications = cursor.fetchone()[0]
+
+            
+
+            cursor.execute('SELECT COUNT(*) FROM driver_applications WHERE status = "approved"')
+
+            approved_applications = cursor.fetchone()[0]
+
+            
+
+            cursor.execute('SELECT COUNT(*) FROM orders WHERE status = "pending"')
+
+            pending_orders = cursor.fetchone()[0]
+
+            
+
+            cursor.execute('SELECT COUNT(*) FROM orders WHERE status = "assigned"')
+
+            assigned_orders = cursor.fetchone()[0]
+
+            
+
+            stats_message = (
+
+                "📊 TAKSI BOT STATISTIKA\n\n"
+
+                "👥 Foydalanuvchilar:\n"
+
+                f"   • Jami foydalanuvchilar: {total_users}\n"
+
+                f"   • Jami haydovchilar: {total_drivers}\n\n"
+
+                "📦 Buyurtmalar:\n"
+
+                f"   • Jami buyurtmalar: {total_orders}\n"
+
+                f"   • Kutilayotgan: {pending_orders}\n"
+
+                f"   • Biriktirilgan: {assigned_orders}\n"
+
+                f"   • Tugatilgan: {completed_orders}\n\n"
+
+                "📝 Arizalar:\n"
+
+                f"   • Kutilayotgan arizalar: {pending_applications}\n"
+
+                f"   • Tasdiqlangan arizalar: {approved_applications}\n\n"
+
+                f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+            )
+
+            
+
+            await update.message.reply_text(stats_message, reply_markup=get_admin_menu())
+
     elif text == "📊 Buyurtmalar":
 
         if str(telegram_id) == os.getenv('ADMIN_CHAT_ID'):
@@ -1774,19 +1862,77 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if str(telegram_id) == os.getenv('ADMIN_CHAT_ID'):
 
-        await update.message.reply_text(
+        conn = sqlite3.connect('taxibot.db')
 
-            "👨‍💼 ADMIN PANEL\n\n"
+        cursor = conn.cursor()
 
-            "Xush kelibsiz, admin! Quyidagi funktsiyalardan foydalanishingiz mumkin:",
+        
 
-            reply_markup=get_admin_menu()
+        # Statistikani olish
+
+        cursor.execute('SELECT COUNT(*) FROM users')
+
+        total_users = cursor.fetchone()[0]
+
+        
+
+        cursor.execute('SELECT COUNT(*) FROM drivers')
+
+        total_drivers = cursor.fetchone()[0]
+
+        
+
+        cursor.execute('SELECT COUNT(*) FROM orders')
+
+        total_orders = cursor.fetchone()[0]
+
+        
+
+        cursor.execute('SELECT COUNT(*) FROM orders WHERE status = "completed"')
+
+        completed_orders = cursor.fetchone()[0]
+
+        
+
+        cursor.execute('SELECT COUNT(*) FROM driver_applications WHERE status = "pending"')
+
+        pending_applications = cursor.fetchone()[0]
+
+        
+
+        cursor.execute('SELECT COUNT(*) FROM driver_applications WHERE status = "approved"')
+
+        approved_applications = cursor.fetchone()[0]
+
+        
+
+        conn.close()
+
+        
+
+        stats_message = (
+
+            "📊 ADMIN PANEL STATISTIKA\n\n"
+
+            f"👥 Jami foydalanuvchilar: {total_users}\n"
+
+            f"🚗 Jami haydovchilar: {total_drivers}\n"
+
+            f"📦 Jami buyurtmalar: {total_orders}\n"
+
+            f"✅ Tugatilgan buyurtmalar: {completed_orders}\n"
+
+            f"⏳ Kutilayotgan arizalar: {pending_applications}\n"
+
+            f"✅ Tasdiqlangan arizalar: {approved_applications}\n\n"
+
+            "👨‍💼 Quyidagi funktsiyalardan foydalanishingiz mumkin:"
 
         )
 
-    else:
+        
 
-        await update.message.reply_text("❌ Sizda admin huquqi yo'q.", reply_markup=get_main_menu())
+        await update.message.reply_text(stats_message, reply_markup=get_admin_menu())
 
 
 
